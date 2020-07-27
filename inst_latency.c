@@ -1,3 +1,5 @@
+// Compile: gcc -o inst_latency inst_latency.c
+// Usage: ./inst_latency
 #include <stdio.h>
 #include <stdlib.h>
 #include "counter.h"
