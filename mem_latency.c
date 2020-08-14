@@ -5,26 +5,13 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define COUNTER(t) ({asm volatile("isb;""mrs %0, CNTVCT_EL0;":"=r"(t1));})  // Macro
-
-#define ARM_COUNTER() ({                              \
-  register unsigned long val;                         \
-  asm volatile("isb;""mrs %0, CNTVCT_EL0;":"=r"(val));\
-  val;                                                \
-})  // Return uint64 value
-
-typedef void *ptr_t;
+typedef void* ptr_t;
 clock_t measure_load(ptr_t *arr, size_t len, size_t stride, size_t repeats);
+void check_args(int argc, char **argv);
 void die(char *msg);
 
 int main(int argc, char **argv) {
-  if (argc <= 1) {
-    die("Didn't specify the size of array (in KB) and stride");
-  } else if (argc <= 2) {
-    die("Didn't specify the stride.");
-  } else if (atoi(argv[2]) % sizeof(ptr_t) != 0) {
-    die("Stride must aligned to 8Bytes.");
-  }
+  check_args(argc, argv);
   size_t total_bytes = atoi(argv[1]) * 1024;
   size_t stride_bytes = atoi(argv[2]);
   size_t len = total_bytes / sizeof(ptr_t);
@@ -49,7 +36,6 @@ int main(int argc, char **argv) {
 }
 
 clock_t measure_load(ptr_t *arr, size_t len, size_t stride, size_t repeats) {
-  // Init
   size_t k;
   for (k = 0; k < len; k += stride) arr[k] = arr + ((k + stride) % len);
   arr[k - stride] = arr;
@@ -79,6 +65,12 @@ clock_t measure_load(ptr_t *arr, size_t len, size_t stride, size_t repeats) {
 #endif
   }
   return best_result;
+}
+
+void check_args(int argc, char **argv) {
+  if (argc <= 1) die("Didn't specify the size of array (in KB) and stride");
+  else if (argc <= 2) die("Didn't specify the stride.");
+  else if (atoi(argv[2]) % sizeof(ptr_t) != 0) die("Stride must aligned to 8Bytes.");
 }
 
 void die(char *msg) {

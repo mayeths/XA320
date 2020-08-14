@@ -1,3 +1,7 @@
+// Compile: gcc -fopenmp -o inst_throughput inst_throughput.c
+// Usage: GOMP_CPU_AFFINITY="0-47:1" ./inst_throughput [num_threads=10]
+// The GOMP_CPU_AFFINITY binds threads to specific CPUs.
+// Here we use first sockets(48 cores) on Huawei Kunpeng920 as example.
 #include <stdlib.h>
 #include <stdio.h>
 #include "counter.h"
@@ -5,23 +9,24 @@
 
 #define OP(op1, op2)             \
   x[0] = x[0] op1 y[0] op2 z[0]; \
-  x[1] = x[1] op1 y[0] op2 z[0]; \
-  x[2] = x[2] op1 y[0] op2 z[0]; \
-  x[3] = x[3] op1 y[0] op2 z[0]; \
-  x[4] = x[4] op1 y[0] op2 z[0]; \
-  x[5] = x[5] op1 y[0] op2 z[0]; \
-  x[6] = x[6] op1 y[0] op2 z[0]; \
-  x[7] = x[7] op1 y[0] op2 z[0];
+  x[1] = x[1] op1 y[1] op2 z[1]; \
+  x[2] = x[2] op1 y[2] op2 z[2]; \
+  x[3] = x[3] op1 y[3] op2 z[3]; \
+  x[4] = x[4] op1 y[4] op2 z[4]; \
+  x[5] = x[5] op1 y[5] op2 z[5]; \
+  x[6] = x[6] op1 y[6] op2 z[6]; \
+  x[7] = x[7] op1 y[7] op2 z[7];
 
 #define OMP_PRAGMA() \
  _Pragma("omp parallel for private(iter, idx, x, y, z) num_threads(nthreads)")
 
-#define TEST_OP3(name, test_t, op1, op2) {              \
+#define TEST_3(name, test_t, op1, op2) {                \
   test_t x[8], y[8], z[8];                              \
   u_int64_t counter, iter, idx;                         \
   for (idx = 0; idx < 8; idx++) {                       \
     x[idx] = 1.0;                                       \
     y[idx] = 1.00001;                                   \
+    z[idx] = 0.00001;                                   \
   }                                                     \
   TIK(counter)                                          \
   OMP_PRAGMA()                                        /*\
@@ -31,19 +36,20 @@
   printf("%4s: %10ld\n", name, counter);                \
   }
 
-#define TEST_OP2(name, test_t, op1) TEST_OP3(name, test_t, op1, ;)
+#define TEST_2(name, test_t, op1) TEST_3(name, test_t, op1, ;)
 
 int main(int argc, char **argv) {
   int nthreads = 10;
   if (argc > 1) nthreads = atoi(argv[1]);
-  TEST_OP2("addd", double, +);
-  TEST_OP2("subd", double, -);
-  TEST_OP2("muld", double, *);
-  TEST_OP2("divd", double, /);
-  TEST_OP2("adds", float, +);
-  TEST_OP2("subs", float, -);
-  TEST_OP2("muls", float, *);
-  TEST_OP2("divs", float, /);
-  TEST_OP3("mad", double, *, +);
-  TEST_OP3("mas", float, *, +);
+
+  TEST_2("addd", double, +);
+  TEST_2("subd", double, -);
+  TEST_2("muld", double, *);
+  TEST_2("divd", double, /);
+  TEST_2("adds", float, +);
+  TEST_2("subs", float, -);
+  TEST_2("muls", float, *);
+  TEST_2("divs", float, /);
+  TEST_3("mad", double, *, +);
+  TEST_3("mas", float, *, +);
 }
