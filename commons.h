@@ -42,16 +42,16 @@ void display_counter_info() {
 }
 
 // -------------------- CPU CLOCK ---------------------- //
-// We think each ADD instruction take 1 cycle
-// because the following result is about 0.385ns(2.6GHz)
-// if we run on Huawei Kunpeng 920.
+// We assume each ADD instruction take 1 cycle
+// because the following result is about
+// 0.385ns(2.6GHz) on Huawei Kunpeng 920.
 double cpu_clock() {
   const int repeats = 1000000;
   register int a, b;
   register u_int64_t counter, i;
   TICK(counter);
   for (i = 0; i < repeats; i += 1000) {
-    X1000(INST_2("add", a, b))
+    X1000(asm volatile("add %0, %0, %1;" : "=r"(a) : "r"(b));)
   }
   TOCK(counter);
   u_int64_t total_ns = counter * counter_ns();
