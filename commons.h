@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -9,8 +11,6 @@
 #define X100(inst) X50(inst) X50(inst)
 #define X500(inst) X100(inst) X100(inst) X100(inst) X100(inst) X100(inst)
 #define X1000(inst) X500(inst) X500(inst)
-#define INST_2(op, r0, r1) asm volatile(op " %0, %0, %1;" : "=r"(r0) : "r"(r1));
-#define INST_3(op, r0, r1, r2) asm volatile(op " %0, %0, %1, %2;" : "=r"(r0) : "r"(r1), "r"(r2));
 
 // -------------------- COUNTER ---------------------- //
 
