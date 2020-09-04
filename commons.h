@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 // -------------------- UNROLL ---------------------- //
-
+// DO NOT use unroll without braces.
 #define X5(inst) inst inst inst inst inst
 #define X10(inst) X5(inst) X5(inst)
 #define X50(inst) X10(inst) X10(inst) X10(inst) X10(inst) X10(inst)

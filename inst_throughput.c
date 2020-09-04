@@ -1,55 +1,113 @@
-// Compile: gcc -fopenmp -o inst_throughput inst_throughput.c
-// Usage: GOMP_CPU_AFFINITY="0-47:1" ./inst_throughput [num_threads=10]
-// The GOMP_CPU_AFFINITY binds threads to specific CPUs.
-// Here we use first sockets(48 cores) on Huawei Kunpeng920 as example.
-#include <stdlib.h>
+// Compile: gcc -o inst_throughput inst_throughput.c
+// Usage: ./inst_throughput
 #include <stdio.h>
-#include "counter.h"
-#define ITER_SIZE 100000000
+#include <stdlib.h>
+#include "commons.h"
 
-#define OP(op1, op2)             \
-  x[0] = x[0] op1 y[0] op2 z[0]; \
-  x[1] = x[1] op1 y[1] op2 z[1]; \
-  x[2] = x[2] op1 y[2] op2 z[2]; \
-  x[3] = x[3] op1 y[3] op2 z[3]; \
-  x[4] = x[4] op1 y[4] op2 z[4]; \
-  x[5] = x[5] op1 y[5] op2 z[5]; \
-  x[6] = x[6] op1 y[6] op2 z[6]; \
-  x[7] = x[7] op1 y[7] op2 z[7];
+#define REPEATS 1000000
 
-#define OMP_PRAGMA() \
- _Pragma("omp parallel for private(iter, idx, x, y, z) num_threads(nthreads)")
-
-#define TEST_3(name, test_t, op1, op2) {                \
-  test_t x[8], y[8], z[8];                              \
-  u_int64_t counter, iter, idx;                         \
-  for (idx = 0; idx < 8; idx++) {                       \
-    x[idx] = 1.0;                                       \
-    y[idx] = 1.00001;                                   \
-    z[idx] = 0.00001;                                   \
-  }                                                     \
-  TIK(counter)                                          \
-  OMP_PRAGMA()                                        /*\
-                a trick to output newline in macro    */\
-  for (iter = 0; iter < ITER_SIZE; iter++) OP(op1, op2) \
-  TOK(counter)                                          \
-  printf("%4s: %10ld\n", name, counter);                \
+#define TEST_CORE(op, core_inst)                        \
+  {                                                     \
+    TICK(counter);                                      \
+    for (i = 0; i < REPEATS; i += 1000 * 10) {          \
+      X1000(core_inst);                                 \
+    }                                                   \
+    TOCK(counter);                                      \
+    u_int64_t total_ns = counter * counter_ns();        \
+    double gips = (double)REPEATS / (double)total_ns;   \
+    printf(                                             \
+      "%5s %.2f GIPS (Giga inst per sec)\n", op, gips); \
   }
 
-#define TEST_2(name, test_t, op1) TEST_3(name, test_t, op1, ;)
+#define TEST_ICORE(op, m, n) TEST_CORE(op,            \
+  asm volatile(                                       \
+    op" %0,%10"m"%10"n"%10;\n"                        \
+    op" %1,%10"m"%10"n"%10;\n"                        \
+    op" %2,%10"m"%10"n"%10;\n"                        \
+    op" %3,%10"m"%10"n"%10;\n"                        \
+    op" %4,%10"m"%10"n"%10;\n"                        \
+    op" %5,%10"m"%10"n"%10;\n"                        \
+    op" %6,%10"m"%10"n"%10;\n"                        \
+    op" %7,%10"m"%10"n"%10;\n"                        \
+    op" %8,%10"m"%10"n"%10;\n"                        \
+    op" %9,%10"m"%10"n"%10;\n"                        \
+    : "=r"(a[0]), "=r"(a[1]), "=r"(a[2]), "=r"(a[3]), \
+      "=r"(a[4]), "=r"(a[5]), "=r"(a[6]), "=r"(a[7]), \
+      "=r"(a[8]), "=r"(a[9])                          \
+    :  "r"(a[10])                                     \
+);)
 
-int main(int argc, char **argv) {
-  int nthreads = 10;
-  if (argc > 1) nthreads = atoi(argv[1]);
+#define TEST_FCORE(op, m, n) TEST_CORE(op, \
+  asm volatile(                            \
+    op" s0,s10"m"s10"n"s10;\n"             \
+    op" s1,s10"m"s10"n"s10;\n"             \
+    op" s2,s10"m"s10"n"s10;\n"             \
+    op" s3,s10"m"s10"n"s10;\n"             \
+    op" s4,s10"m"s10"n"s10;\n"             \
+    op" s5,s10"m"s10"n"s10;\n"             \
+    op" s6,s10"m"s10"n"s10;\n"             \
+    op" s7,s10"m"s10"n"s10;\n"             \
+    op" s8,s10"m"s10"n"s10;\n"             \
+    op" s9,s10"m"s10"n"s10;\n"             \
+);)
 
-  TEST_2("addd", double, +);
-  TEST_2("subd", double, -);
-  TEST_2("muld", double, *);
-  TEST_2("divd", double, /);
-  TEST_2("adds", float, +);
-  TEST_2("subs", float, -);
-  TEST_2("muls", float, *);
-  TEST_2("divs", float, /);
-  TEST_3("mad", double, *, +);
-  TEST_3("mas", float, *, +);
+#define TEST_DCORE(op, m, n) TEST_CORE(op, \
+  asm volatile(                            \
+    op" d0,d10"m"d10"n"d10;\n"             \
+    op" d1,d10"m"d10"n"d10;\n"             \
+    op" d2,d10"m"d10"n"d10;\n"             \
+    op" d3,d10"m"d10"n"d10;\n"             \
+    op" d4,d10"m"d10"n"d10;\n"             \
+    op" d5,d10"m"d10"n"d10;\n"             \
+    op" d6,d10"m"d10"n"d10;\n"             \
+    op" d7,d10"m"d10"n"d10;\n"             \
+    op" d8,d10"m"d10"n"d10;\n"             \
+    op" d9,d10"m"d10"n"d10;\n"             \
+);)
+
+#define TEST_VCORE(op, m, n) TEST_CORE(op, \
+  asm volatile(                            \
+    op" v0.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+    op" v1.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+    op" v2.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+    op" v3.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+    op" v4.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+    op" v5.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+    op" v6.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+    op" v7.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+    op" v8.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+    op" v9.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+);)
+
+// ------------------------------------------ //
+// I: accept 32bits and 64bits integer instruction
+// F: accept 32bits floating point instruction
+// D: accept 64bits floating point instruction
+// V: accept 32bitsx4 integer/floating point instruction
+#define TEST_I1(op) TEST_ICORE(op, "//", "  ")
+#define TEST_F1(op) TEST_FCORE(op, "//", "  ")
+#define TEST_D1(op) TEST_DCORE(op, "//", "  ")
+#define TEST_V1(op) TEST_VCORE(op, "//", "  ")
+#define TEST_I2(op) TEST_ICORE(op, ", ", "//")
+#define TEST_F2(op) TEST_FCORE(op, ", ", "//")
+#define TEST_D2(op) TEST_DCORE(op, ", ", "//")
+#define TEST_V2(op) TEST_VCORE(op, ", ", "//")
+#define TEST_I3(op) TEST_ICORE(op, ", ", ", ")
+#define TEST_F3(op) TEST_FCORE(op, ", ", ", ")
+#define TEST_D3(op) TEST_DCORE(op, ", ", ", ")
+#define TEST_V3(op) TEST_VCORE(op, ", ", ", ")
+
+// ------------------------------------------ //
+// We need -O3 to make sure unrolling in TEST_CORE works.
+__attribute__ ((optimize(3)))
+int main() {
+  register int a[11];
+  register u_int64_t counter, i;
+  double cpu_ghz = 1 / cpu_clock();
+  printf("CPU runs at %.2f GHz\n", cpu_ghz);
+  TEST_I1("MOV");
+  TEST_I2("MUL");
+  TEST_I3("MADD");
+  TEST_F2("FADD");
+  TEST_V2("ADD");
 }
