@@ -47,14 +47,17 @@ int main(int argc, char **argv) {
   return 0;
 }
 
+// ------------------------------------------ //
+// Pointer chasing. Require numb % jump == 0
 u_int64_t pointer_chasing(ptr_t *arr, int numb, int jump) {
   memset(arr, 0, numb * ELEMENT_SIZE);
   register int i;
-  for (i = jump; arr[i] == 0; i = (i + jump) % numb) {
-    arr[i] = arr + ((i + jump) % numb);
+  for (i = jump; i < numb; i += jump) {
+    arr[i] = arr + (i - jump);
   }
+  arr[0] = arr + (i - jump);
 
-  register ptr_t *ptr = arr + jump;
+  register ptr_t *ptr = arr + (i - jump);
   while (ptr > arr) ptr = *ptr;
 
   register u_int64_t counter;
