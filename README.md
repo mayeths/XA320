@@ -1,5 +1,7 @@
 # ✨Testing basic operations on single Huawei ARM core
 
+All *.c files can be directly compiled by `gcc`.
+
 ### 1. 指令延迟测试 inst_latency.c
 ![Inst Latency](./img/inst_latency.png "Instruction latency")
 
