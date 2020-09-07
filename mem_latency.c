@@ -49,16 +49,18 @@ int main(int argc, char **argv) {
 
 // ------------------------------------------ //
 // Pointer chasing. Require numb % jump == 0
+// Backward chasing. e.g,
+// arr[4] = arr + 0, arr[8] = arr + 4, arr[12] = arr + 8
 u_int64_t pointer_chasing(ptr_t *arr, int numb, int jump) {
   memset(arr, 0, numb * ELEMENT_SIZE);
   register int i;
   for (i = jump; i < numb; i += jump) {
     arr[i] = arr + (i - jump);
   }
-  arr[0] = arr + (i - jump);
+  arr[0] = arr + (i - jump);  // assert arr + (i - jump) point to last element
 
   register ptr_t *ptr = arr + (i - jump);
-  while (ptr > arr) ptr = *ptr;
+  while (ptr > arr) ptr = *ptr;  // warm-up from right to left
 
   register u_int64_t counter;
   TICK(counter);
