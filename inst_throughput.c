@@ -6,17 +6,19 @@
 
 #define REPEATS 1000000
 
-#define TEST_CORE(op, core_inst)                        \
-  {                                                     \
-    TICK(counter);                                      \
-    for (i = 0; i < REPEATS; i += 1000 * 10) {          \
-      X1000(core_inst);                                 \
-    }                                                   \
-    TOCK(counter);                                      \
-    u_int64_t total_ns = counter * counter_ns();        \
-    double gips = (double)REPEATS / (double)total_ns;   \
-    printf(                                             \
-      "%5s %.2f GIPS (Giga inst per sec)\n", op, gips); \
+#define TEST_CORE(op, core_inst)                    \
+  {                                                 \
+    TICK(counter);                                  \
+    for (i = 0; i < REPEATS; i += 1000 * 10) {      \
+      X1000(core_inst);                             \
+    }                                               \
+    TOCK(counter);                                  \
+    u_int64_t total_ns = counter * counter_ns();    \
+    double ns = (double)total_ns / (double)REPEATS; \
+    double ipc = (double)cpu_clock() / (double)ns;  \
+    double gips = 1 / ns;  /* Giga inst per sec */  \
+    printf("%5s %.2f GIPS IPC: %.2f\n",             \
+      op, gips, ipc);                               \
   }
 
 #define TEST_ICORE(op, m, n) TEST_CORE(op,            \
@@ -65,25 +67,20 @@
     op" d9,d10"m"d10"n"d10;\n"             \
 );)
 
-#define TEST_VCORE(op, m, n) TEST_CORE(op, \
-  asm volatile(                            \
-    op" v0.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
-    op" v1.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
-    op" v2.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
-    op" v3.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
-    op" v4.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
-    op" v5.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
-    op" v6.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
-    op" v7.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
-    op" v8.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
-    op" v9.4s,v10.4s"m"v10.4s"n"v10.4s;\n" \
+#define TEST_VCORE(op, m, n) TEST_CORE(op,     \
+  asm volatile(                                \
+    op" v0.4s,v10.4s"m"v10.4s"n"v10.4s;\n"     \
+    op" v1.4s,v10.4s"m"v10.4s"n"v10.4s;\n"     \
+    op" v2.4s,v10.4s"m"v10.4s"n"v10.4s;\n"     \
+    op" v3.4s,v10.4s"m"v10.4s"n"v10.4s;\n"     \
+    op" v4.4s,v10.4s"m"v10.4s"n"v10.4s;\n"     \
+    op" v5.4s,v10.4s"m"v10.4s"n"v10.4s;\n"     \
+    op" v6.4s,v10.4s"m"v10.4s"n"v10.4s;\n"     \
+    op" v7.4s,v10.4s"m"v10.4s"n"v10.4s;\n"     \
+    op" v8.4s,v10.4s"m"v10.4s"n"v10.4s;\n"     \
+    op" v9.4s,v10.4s"m"v10.4s"n"v10.4s;\n"     \
 );)
 
-// ------------------------------------------ //
-// I: accept 32bits and 64bits integer instruction
-// F: accept 32bits floating point instruction
-// D: accept 64bits floating point instruction
-// V: accept 32bitsx4 integer/floating point instruction
 #define TEST_I1(op) TEST_ICORE(op, "//", "  ")
 #define TEST_F1(op) TEST_FCORE(op, "//", "  ")
 #define TEST_D1(op) TEST_DCORE(op, "//", "  ")
@@ -97,17 +94,9 @@
 #define TEST_D3(op) TEST_DCORE(op, ", ", ", ")
 #define TEST_V3(op) TEST_VCORE(op, ", ", ", ")
 
-// ------------------------------------------ //
-// We need -O3 to make sure unrolling in TEST_CORE works.
 __attribute__ ((optimize(3)))
 int main() {
   register int a[11];
   register u_int64_t counter, i;
-  double cpu_ghz = 1 / cpu_clock();
-  printf("CPU runs at %.2f GHz\n", cpu_ghz);
-  TEST_I1("MOV");
-  TEST_I2("MUL");
-  TEST_I3("MADD");
-  TEST_F2("FADD");
-  TEST_V2("ADD");
+  TEST_I2("ADD");
 }
