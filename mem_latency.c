@@ -10,8 +10,7 @@ typedef void* ptr_t;
 #define LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 #define KB(n) (1024 * (n))
 #define MB(n) (1024 * 1024 * (n))
-#define REPEATS 24000000
-u_int64_t pointer_chasing(ptr_t *arr, int numb, int jump);
+u_int64_t pointer_chasing(ptr_t *arr, int numb, int jump, int* repeats);
 
 int main(int argc, char **argv) {
   int sizes[] = {
@@ -20,7 +19,7 @@ int main(int argc, char **argv) {
     MB(48), MB(64), MB(96)
   };
   int strides[] = {
-    8, 16, 32, 64, 128, 256, 512,
+    16, 32, 64, 128, 256, 512,
     KB(1), KB(2), KB(4), KB(8), KB(16), KB(32),
     KB(64), KB(128), KB(256), KB(512),
     MB(1), MB(2), MB(4)
@@ -32,13 +31,13 @@ int main(int argc, char **argv) {
       int size = sizes[i];
       int stride = strides[j];
       int numb = size / ELEMENT_SIZE;
-      int jump = stride / ELEMENT_SIZE;
+      int jump = stride / ELEMENT_SIZE - 1;
+      int repeats = 0;
       ptr_t *arr = malloc(size);
-      u_int64_t counter = pointer_chasing(arr, numb, jump);
+      u_int64_t counter = pointer_chasing(arr, numb, jump, &repeats);
       u_int64_t total_ns = counter * counter_ns();
-      printf(
-        "%10lu %10lu %5.2fns\n",
-        size, stride, (double)total_ns / REPEATS);
+      printf("%10lu %10lu %8.4f\n",
+        size, stride, (double)total_ns / (double)repeats);
       free(arr);
     }
     printf("\n");
@@ -47,26 +46,22 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-// ------------------------------------------ //
-// Pointer chasing. It's not necessary for numb % jump == 0
-// Backward chasing. e.g,
-// arr[4] = arr + 0, arr[8] = arr + 4, arr[12] = arr + 8
-u_int64_t pointer_chasing(ptr_t *arr, int numb, int jump) {
+u_int64_t pointer_chasing(ptr_t *arr, int numb, int jump, int* repeats) {
   memset(arr, 0, numb * ELEMENT_SIZE);
+  *repeats = 0;
   register int i;
-  for (i = jump; i < numb; i += jump) {
-    arr[i] = arr + (i - jump);
+  for (i = 0; arr[i] == 0; i = (i + jump) % numb) {
+    arr[i] = arr + ((i + jump) % numb);
+    *repeats += 1;
   }
-  arr[0] = arr + (i - jump); // arr+(i-jump) point to last chasing element
 
-  register ptr_t *ptr = arr + (i - jump);
-  while (ptr > arr) ptr = *ptr; // warm-up from right to left
+  register ptr_t *ptr = arr[0];
+  do { ptr = *ptr; } while (ptr != arr);
 
   register u_int64_t counter;
+  *ptr = arr[0];
   TICK(counter);
-  for (i = 0; i < REPEATS; i+= 1000) {
-    X1000(ptr = *ptr;)
-  }
+  do { ptr = *ptr; } while (ptr != arr);
   TOCK(counter);
 
   return counter;
